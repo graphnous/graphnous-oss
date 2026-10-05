@@ -29,6 +29,7 @@ The Graphnous application therefore requires access to the Docker socket.
 git clone https://github.com/graphnous/graphnous-oss.git
 cd graphnous-oss
 ```
+
 2. Configure Graphnous
 
 Copy the example environment file:
@@ -49,28 +50,35 @@ GRAPHNOUS_POSTGRES_URL=jdbc:postgresql://postgres:5432/graphnous
 GRAPHNOUS_POSTGRES_USERNAME=graphnous
 GRAPHNOUS_POSTGRES_PASSWORD=change-me
 ```
+
 ### Neo4j
 ```
 GRAPHNOUS_NEO4J_URL=bolt://neo4j:7687
 GRAPHNOUS_NEO4J_USERNAME=neo4j
 GRAPHNOUS_NEO4J_PASSWORD=change-me
 ```
+
 ### Docker
 ```
 GRAPHNOUS_DOCKER_SOCKET=/var/run/docker.sock
 ```
+
 ### Onboarding
 ```
 GRAPHNOUS_ONBOARDING_ENABLED=true
 ```
+
 ### Optional: AI features
 ```
 GRAPHNOUS_OPENAI_API_KEY=
 ```
+
 ### Optional: private Git repositories
 ```
+
 GRAPHNOUS_GIT_SSH_PRIVATE_KEY=
 ```
+
 3. Start Graphnous
 
 ```
@@ -91,13 +99,13 @@ Open the Graphnous web application in your browser:
 http://localhost
 ```
 
-How Graphnous uses Docker
+## How Graphnous uses Docker
 
 Docker is an integral part of the self-hosted Graphnous architecture.
 
 Graphnous uses separate containers and volumes for repository processing so that application services do not need direct access to the host filesystem.
 
-```mermaidjs
+```mermaid
 flowchart TD
     Web[Graphnous Web]
     Server[Graphnous App Server]
@@ -134,7 +142,7 @@ When a scan starts, Graphnous creates a dedicated Docker container for checking 
 
 The repository is checked out into a Docker volume. Scanner containers then access the same checkout volume.
 
-```mermaidjs
+```mermaid
 flowchart LR
     Repository[Git Repository]
 
@@ -157,7 +165,7 @@ For private repositories, the checkout container can authenticate using the conf
 
 After the repository has been checked out, Graphnous runs the appropriate language scanners against the checkout.
 
-```mermaidjs
+```mermaid
 flowchart TD
     Volume[(Checkout Volume)]
 
@@ -183,7 +191,7 @@ The resulting graph scan is processed by the Graphnous application and stored in
 
 ## Complete scan pipeline
 
-```mermaidjs
+```mermaid
 flowchart LR
     Git[Git Repository]
 
@@ -262,18 +270,19 @@ AI functionality is optional. Graphnous can run without an OpenAI API key.
 
 The main configuration options are:
 
-Variable| Required| Description
-"GRAPHNOUS_VERSION"| No| Graphnous image version
-"GRAPHNOUS_POSTGRES_URL"| Yes| PostgreSQL JDBC URL
-"GRAPHNOUS_POSTGRES_USERNAME"| Yes| PostgreSQL username
-"GRAPHNOUS_POSTGRES_PASSWORD"| Yes| PostgreSQL password
-"GRAPHNOUS_NEO4J_URL"| Yes| Neo4j Bolt URL
-"GRAPHNOUS_NEO4J_USERNAME"| Yes| Neo4j username
-"GRAPHNOUS_NEO4J_PASSWORD"| Yes| Neo4j password
-"GRAPHNOUS_DOCKER_SOCKET"| Yes| Docker socket used for checkouts and scans
-"GRAPHNOUS_ONBOARDING_ENABLED"| No| Enables the initial onboarding experience
-"GRAPHNOUS_OPENAI_API_KEY"| No| OpenAI API key for AI features
-"GRAPHNOUS_GIT_SSH_PRIVATE_KEY"| No| SSH private key for private Git repositories
+| Variable | Required | Description |
+|---|---|---|
+| `GRAPHNOUS_VERSION` | No | Graphnous image version |
+| `GRAPHNOUS_POSTGRES_URL` | Yes | PostgreSQL JDBC URL |
+| `GRAPHNOUS_POSTGRES_USERNAME` | Yes | PostgreSQL username |
+| `GRAPHNOUS_POSTGRES_PASSWORD` | Yes | PostgreSQL password |
+| `GRAPHNOUS_NEO4J_URL` | Yes | Neo4j Bolt URL |
+| `GRAPHNOUS_NEO4J_USERNAME` | Yes | Neo4j username |
+| `GRAPHNOUS_NEO4J_PASSWORD` | Yes | Neo4j password |
+| `GRAPHNOUS_DOCKER_SOCKET` | Yes | Docker socket used for checkouts and scans |
+| `GRAPHNOUS_ONBOARDING_ENABLED` | No | Enables the initial onboarding experience |
+| `GRAPHNOUS_OPENAI_API_KEY` | No | OpenAI API key for AI features |
+| `GRAPHNOUS_GIT_SSH_PRIVATE_KEY` | No | SSH private key for private Git repositories |
 
 See ".env.example" for the complete configuration.
 
@@ -295,7 +304,7 @@ Checkout data should be treated as sensitive because it can contain the complete
 
 Graphnous separates relational application data from the software graph.
 
-```mermaidjs
+```mermaid
 flowchart TD
     App[Graphnous App Server]
 
