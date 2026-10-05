@@ -6,9 +6,9 @@ Graphnous analyzes your software and builds a graph of your systems, projects, m
 
 Run Graphnous yourself with Docker Compose and explore your codebase through the Graphnous application.
 
-Quick start
+## Quick start
 
-Requirements
+### Requirements
 
 - Docker
 - Docker Compose v2
@@ -25,54 +25,71 @@ The Graphnous application therefore requires access to the Docker socket.
 
 1. Clone the repository
 
+```
 git clone https://github.com/graphnous/graphnous-oss.git
 cd graphnous-oss
-
+```
 2. Configure Graphnous
 
 Copy the example environment file:
 
+```
 cp .env.example .env
+```
 
 Configure the required values:
 
+```
 GRAPHNOUS_VERSION=latest
+```
 
-# PostgreSQL
+### PostgreSQL
+```
 GRAPHNOUS_POSTGRES_URL=jdbc:postgresql://postgres:5432/graphnous
 GRAPHNOUS_POSTGRES_USERNAME=graphnous
 GRAPHNOUS_POSTGRES_PASSWORD=change-me
-
-# Neo4j
+```
+### Neo4j
+```
 GRAPHNOUS_NEO4J_URL=bolt://neo4j:7687
 GRAPHNOUS_NEO4J_USERNAME=neo4j
 GRAPHNOUS_NEO4J_PASSWORD=change-me
-
-# Docker
+```
+### Docker
+```
 GRAPHNOUS_DOCKER_SOCKET=/var/run/docker.sock
-
-# Onboarding
+```
+### Onboarding
+```
 GRAPHNOUS_ONBOARDING_ENABLED=true
-
-# Optional: AI features
+```
+### Optional: AI features
+```
 GRAPHNOUS_OPENAI_API_KEY=
-
-# Optional: private Git repositories
+```
+### Optional: private Git repositories
+```
 GRAPHNOUS_GIT_SSH_PRIVATE_KEY=
-
+```
 3. Start Graphnous
 
+```
 docker compose up -d
+```
 
 Check the running services:
 
+```
 docker compose ps
+```
 
 Graphnous is now running locally.
 
 Open the Graphnous web application in your browser:
 
+```
 http://localhost
+```
 
 How Graphnous uses Docker
 
@@ -80,6 +97,7 @@ Docker is an integral part of the self-hosted Graphnous architecture.
 
 Graphnous uses separate containers and volumes for repository processing so that application services do not need direct access to the host filesystem.
 
+```mermaidjs
 flowchart TD
     Web[Graphnous Web]
     Server[Graphnous App Server]
@@ -108,13 +126,15 @@ flowchart TD
 
     Server --> Postgres
     Server --> Neo4j
+```
 
-Git checkout
+## Git checkout
 
 When a scan starts, Graphnous creates a dedicated Docker container for checking out the repository.
 
 The repository is checked out into a Docker volume. Scanner containers then access the same checkout volume.
 
+```mermaidjs
 flowchart LR
     Repository[Git Repository]
 
@@ -127,15 +147,17 @@ flowchart LR
     Server --> Docker
     Docker --> Checkout
     Checkout --> Volume
+```
 
 This keeps repository access isolated from the Graphnous application container and avoids requiring the host filesystem to be mounted into the application.
 
 For private repositories, the checkout container can authenticate using the configured SSH private key.
 
-Scanning
+## Scanning
 
 After the repository has been checked out, Graphnous runs the appropriate language scanners against the checkout.
 
+```mermaidjs
 flowchart TD
     Volume[(Checkout Volume)]
 
@@ -155,11 +177,13 @@ flowchart TD
     TypeScript --> Result
     Python --> Result
     Other --> Result
+```
 
 The resulting graph scan is processed by the Graphnous application and stored in Neo4j.
 
-Complete scan pipeline
+## Complete scan pipeline
 
+```mermaidjs
 flowchart LR
     Git[Git Repository]
 
@@ -180,53 +204,61 @@ flowchart LR
 
     Result --> App
     App --> Neo4j
+```
 
-Docker socket
+## Docker socket
 
 The Graphnous application server needs access to the Docker socket:
 
+```
 GRAPHNOUS_DOCKER_SOCKET=/var/run/docker.sock
+```
 
 The Compose deployment mounts it into the application container:
 
+```
 volumes:
   - ${GRAPHNOUS_DOCKER_SOCKET}:/var/run/docker.sock
+```
 
 Access to the Docker socket gives the Graphnous server significant control over the Docker host.
 
 Only run Graphnous with Docker socket access on infrastructure you trust.
 
-Git repositories
+## Git repositories
 
 Graphnous can analyze public and private Git repositories.
 
-Public repositories
+### Public repositories
 
 Public repositories can be checked out without additional Git credentials.
 
-Private repositories
+### Private repositories
 
 For private repositories, Graphnous can use an SSH private key to authenticate with Git.
 
 Configure the key using:
-
+```
 GRAPHNOUS_GIT_SSH_PRIVATE_KEY=
+```
 
 The corresponding public key must have access to the Git repository.
 
 Graphnous uses the key for the checkout operation and does not require the private key to be committed to the repository.
 
-OpenAI
+## OpenAI
 
 Graphnous can optionally use OpenAI-powered features.
 
 Configure your API key:
 
+```
 GRAPHNOUS_OPENAI_API_KEY=...
+```
 
 AI functionality is optional. Graphnous can run without an OpenAI API key.
 
-Configuration
+## Configuration
 
 The main configuration options are:
 
@@ -245,7 +277,7 @@ Variable| Required| Description
 
 See ".env.example" for the complete configuration.
 
-Data persistence
+## Data persistence
 
 Graphnous uses Docker volumes for persistent data.
 
@@ -259,10 +291,11 @@ Repository checkout volumes are used to share source code between the checkout a
 
 Checkout data should be treated as sensitive because it can contain the complete source code of private repositories.
 
-Architecture
+## Architecture
 
 Graphnous separates relational application data from the software graph.
 
+```mermaidjs
 flowchart TD
     App[Graphnous App Server]
 
@@ -297,45 +330,60 @@ flowchart TD
     Neo4j --> Classes
     Neo4j --> Methods
     Neo4j --> Dependencies
+```
 
 The scanner produces a structured Graphnous scan which is then processed by the application and merged into the software graph.
 
-Updating Graphnous
+## Updating Graphnous
 
 Pull the latest images:
 
+```
 docker compose pull
+```
 
 Then restart the deployment:
 
+```
 docker compose up -d
+```
 
 To use a specific version:
 
+```
 GRAPHNOUS_VERSION=0.1.0
+```
 
 Then:
 
+```
 docker compose pull
 docker compose up -d
+```
 
-Stopping Graphnous
+## Stopping Graphnous
 
 Stop the services without removing persistent data:
 
+```
 docker compose down
+```
 
 Start them again with:
 
+```
 docker compose up -d
+```
 
 To remove the containers and volumes:
 
+```
 docker compose down -v
+```
 
 Warning: removing volumes deletes your PostgreSQL, Neo4j, and checkout data.
 
-Open source
+## Open source
 
 Graphnous is open source.
 
@@ -350,7 +398,7 @@ You can:
 - Build scanners and integrations
 - Integrate Graphnous into your development workflow
 
-Contributing
+## Contributing
 
 Contributions are welcome.
 
@@ -364,7 +412,7 @@ Before opening a pull request:
 
 For larger changes, please open an issue first so the approach can be discussed.
 
-Graphnous Cloud
+## Graphnous Cloud
 
 Graphnous can also be used as a hosted service.
 
@@ -376,18 +424,18 @@ Learn more at:
 
 https://graphnous.dev
 
-Sponsorship
+## Sponsorship
 
 Graphnous is developed as an open-source project.
 
 If Graphnous is useful to you, consider supporting its development through GitHub Sponsors.
 
-License
+## License
 
 See "LICENSE" (LICENSE) for the license applicable to this repository.
 
 ---
 
-Graphnous
+# Graphnous
 
 Understand your software as a graph.
