@@ -38,45 +38,21 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-Configure the required values:
+Set the two required values, the database passwords, in `.env`:
 
 ```
-GRAPHNOUS_VERSION=latest
+POSTGRES_PASSWORD=change-me
+NEO4J_PASSWORD=change-me-too
 ```
 
-### PostgreSQL
-```
-GRAPHNOUS_POSTGRES_URL=jdbc:postgresql://postgres:5432/graphnous
-GRAPHNOUS_POSTGRES_USERNAME=graphnous
-GRAPHNOUS_POSTGRES_PASSWORD=change-me
-```
+The Neo4j password needs at least 8 characters. Everything else is optional;
+see [Configuration](#configuration).
 
-### Neo4j
-```
-GRAPHNOUS_NEO4J_URL=bolt://neo4j:7687
-GRAPHNOUS_NEO4J_USERNAME=neo4j
-GRAPHNOUS_NEO4J_PASSWORD=change-me
-```
+On Linux, also set the group that owns the Docker socket, so the server can
+start the checkout and scanner containers (leave it unset on Docker Desktop):
 
-### Docker
 ```
-GRAPHNOUS_DOCKER_SOCKET=/var/run/docker.sock
-```
-
-### Onboarding
-```
-GRAPHNOUS_ONBOARDING_ENABLED=true
-```
-
-### Optional: AI features
-```
-GRAPHNOUS_OPENAI_API_KEY=
-```
-
-### Optional: private Git repositories
-```
-
-GRAPHNOUS_GIT_SSH_PRIVATE_KEY=
+echo "DOCKER_GID=$(stat -c %g /var/run/docker.sock)" >> .env
 ```
 
 3. Start Graphnous
@@ -91,13 +67,56 @@ Check the running services:
 docker compose ps
 ```
 
-Graphnous is now running locally.
-
-Open the Graphnous web application in your browser:
+The first start takes a minute: the web app waits for the server, which
+waits for PostgreSQL and Neo4j. Once `docker compose ps` shows them all
+healthy, open the Graphnous web application in your browser:
 
 ```
-http://localhost
+http://localhost:3000
 ```
+
+## Docker Compose
+
+[`docker-compose.yml`](docker-compose.yml) runs four services:
+
+| Service | Image | Port on the host | What it does |
+|---|---|---|---|
+| `web` | `ghcr.io/graphnous/graphnous-web` | 3000 (`GRAPHNOUS_WEB_PORT`) | The web application. Its server calls the API at `http://server:1337`; the browser never calls the API itself |
+| `server` | `ghcr.io/graphnous/graphnous-server` | 1337 (`GRAPHNOUS_SERVER_PORT`) | The API: projects, scans and the graph. Starts the checkout and scanner containers through the Docker socket |
+| `postgres` | `postgres:17` | Not published | Application data: systems, projects and configuration |
+| `neo4j` | `neo4j:5-community` | Not published | The software graph |
+
+```mermaid
+flowchart LR
+    Browser[Browser]
+
+    subgraph Compose[docker compose]
+        Web[web :3000]
+        Server[server :1337]
+        Postgres[(postgres)]
+        Neo4j[(neo4j)]
+    end
+
+    Docker[Docker Engine]
+
+    Browser --> Web
+    Web --> Server
+    Server --> Postgres
+    Server --> Neo4j
+    Server -- Docker socket --> Docker
+```
+
+The services start in order: PostgreSQL and Neo4j first, then the server
+once both are healthy, then the web app once the server is. The server
+listens on the host too, for uploading scan results and for the GitHub
+App's webhooks.
+
+PostgreSQL and Neo4j are only reachable on the compose network. The compose
+file reads every value from `.env`, and refuses to start without the two
+passwords.
+
+The images' version is `GRAPHNOUS_VERSION`, `edge` by default: the latest
+build of graphnous-app's main branch.
 
 ## How Graphnous uses Docker
 
@@ -226,7 +245,15 @@ The Compose deployment mounts it into the application container:
 
 ```
 volumes:
-  - ${GRAPHNOUS_DOCKER_SOCKET}:/var/run/docker.sock
+  - ${GRAPHNOUS_DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+```
+
+The server runs as a non-root user. To use the socket, it joins the group
+that owns it: `DOCKER_GID`, which is `0` by default, as on Docker Desktop. On
+Linux, set it to the socket's group:
+
+```
+DOCKER_GID=$(stat -c %g /var/run/docker.sock)
 ```
 
 Access to the Docker socket gives the Graphnous server significant control over the Docker host.
@@ -245,10 +272,18 @@ Public repositories can be checked out without additional Git credentials.
 
 For private repositories, Graphnous can use an SSH private key to authenticate with Git.
 
-Configure the key using:
+Configure the key, in double quotes because it spans several lines, and the
+host keys of your Git servers:
+
 ```
-GRAPHNOUS_GIT_SSH_PRIVATE_KEY=
+GRAPHNOUS_GIT_SSH_PRIVATE_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
+...
+-----END OPENSSH PRIVATE KEY-----"
+GRAPHNOUS_GIT_SSH_KNOWN_HOSTS="github.com ssh-ed25519 AAAA..."
 ```
+
+`ssh-keyscan github.com` prints the host keys. Graphnous only fetches from
+hosts listed in `GRAPHNOUS_GIT_SSH_KNOWN_HOSTS`.
 
 The corresponding public key must have access to the Git repository.
 
@@ -261,7 +296,7 @@ Graphnous can optionally use OpenAI-powered features.
 Configure your API key:
 
 ```
-GRAPHNOUS_OPENAI_API_KEY=...
+OPENAI_API_KEY=...
 ```
 
 AI functionality is optional. Graphnous can run without an OpenAI API key.
@@ -272,19 +307,21 @@ The main configuration options are:
 
 | Variable | Required | Description |
 |---|---|---|
-| `GRAPHNOUS_VERSION` | No | Graphnous image version |
-| `GRAPHNOUS_POSTGRES_URL` | Yes | PostgreSQL JDBC URL |
-| `GRAPHNOUS_POSTGRES_USERNAME` | Yes | PostgreSQL username |
-| `GRAPHNOUS_POSTGRES_PASSWORD` | Yes | PostgreSQL password |
-| `GRAPHNOUS_NEO4J_URL` | Yes | Neo4j Bolt URL |
-| `GRAPHNOUS_NEO4J_USERNAME` | Yes | Neo4j username |
-| `GRAPHNOUS_NEO4J_PASSWORD` | Yes | Neo4j password |
-| `GRAPHNOUS_DOCKER_SOCKET` | Yes | Docker socket used for checkouts and scans |
-| `GRAPHNOUS_ONBOARDING_ENABLED` | No | Enables the initial onboarding experience |
-| `GRAPHNOUS_OPENAI_API_KEY` | No | OpenAI API key for AI features |
+| `POSTGRES_PASSWORD` | Yes | Password of the PostgreSQL instance |
+| `NEO4J_PASSWORD` | Yes | Password of the Neo4j instance, at least 8 characters |
+| `GRAPHNOUS_VERSION` | No | Graphnous image version: `edge` (default) or a release |
+| `POSTGRES_DB` | No | PostgreSQL database, `graphnous` by default |
+| `POSTGRES_USER` | No | PostgreSQL user, `graphnous` by default |
+| `GRAPHNOUS_WEB_PORT` | No | Port of the web application on the host, `3000` by default |
+| `GRAPHNOUS_SERVER_PORT` | No | Port of the server on the host, `1337` by default |
+| `GRAPHNOUS_DOCKER_SOCKET` | No | Docker socket used for checkouts and scans, `/var/run/docker.sock` by default |
+| `DOCKER_GID` | No | Group that owns the Docker socket, `0` by default; set it on Linux |
+| `OPENAI_API_KEY` | No | OpenAI API key for AI features |
 | `GRAPHNOUS_GIT_SSH_PRIVATE_KEY` | No | SSH private key for private Git repositories |
+| `GRAPHNOUS_GIT_SSH_KNOWN_HOSTS` | No | Host keys of the Git servers, in `known_hosts` format |
+| `GRAPHNOUS_GITHUB_ENABLED` | No | Enables the GitHub App, which reports on pull requests; see `.env.example` for its settings |
 
-See ".env.example" for the complete configuration.
+See [`.env.example`](.env.example) for the complete configuration.
 
 ## Data persistence
 
@@ -294,7 +331,7 @@ The deployment contains persistent storage for:
 
 - PostgreSQL data
 - Neo4j data
-- Repository checkouts
+- Repository checkouts (the `graphnous-checkouts` volume)
 
 Repository checkout volumes are used to share source code between the checkout and scanner containers.
 
